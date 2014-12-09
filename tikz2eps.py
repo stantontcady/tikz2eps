@@ -2,7 +2,7 @@
 
 from argparse import ArgumentParser
 from os import listdir, getcwd, remove, rename
-from os.path import join as path_join
+from os.path import abspath, basename, isfile, join as path_join
 from subprocess import check_output
 from time import time
 
@@ -29,7 +29,11 @@ def which(program):
     return None
 
 
-def main(input_tikz, height, width, preamble_src, output_dir, keep_pdf, typeset_eng):
+def main(input_tikz, height, width, output_dir, keep_pdf, typeset_eng, preamble_src=None):
+    input_tikz = abspath(input_tikz)
+    if isfile(abspath(input_tikz)) is not True:
+        raise StandardError('input tikz file does not exist')
+    
     if which(typeset_eng) is None:
         raise StandardError('selected typesetting engine (%s) is not installed on this system' % typset_eng)
     
@@ -42,12 +46,12 @@ def main(input_tikz, height, width, preamble_src, output_dir, keep_pdf, typeset_
     else:
         ps_converter = "pdftops"
         
-    output_filename_base = input_tikz.split('.')
+    output_filename_base = basename(input_tikz).split('.')
     output_filename_base.pop()
     output_filename_base = '.'.join(output_filename_base)
 
-    if preamble_src is not None:
-        file_containing_preamble = open(preamble_src, 'r')
+    if preamble_src is not None and isfile(abspath(preamble_src)):
+        file_containing_preamble = open(abspath(preamble_src), 'r')
 
         preamble = [r"\documentclass[]{standalone}"]
         for line in file_containing_preamble:
@@ -65,10 +69,12 @@ def main(input_tikz, height, width, preamble_src, output_dir, keep_pdf, typeset_
 
     document = []
     document.append(r"\begin{document}")
-    document.append(r"\setlength\figureheight{15em}")
-    document.append(r"\setlength\figurewidth{16em}")
-    document.append(r"\input{%s}" % input_tikz)
+    document.append(r"\setlength\figureheight{%sem}" % height)
+    document.append(r"\setlength\figurewidth{%sem}" % width)
+    document.append(r"\input{%s}" % abspath(input_tikz))
     document.append(r"\end{document}")
+    
+    output_dir = abspath(output_dir)
     
     tex_filename = path_join(output_dir, "%s.tex" % temporary_filename_base)
 
@@ -76,27 +82,32 @@ def main(input_tikz, height, width, preamble_src, output_dir, keep_pdf, typeset_
     tex_file.write('\n'.join(preamble + document))
     tex_file.close()
     
+    typeset_command = [typeset_eng]
+    if typeset_eng == "xelatex":
+        typeset_command.append("-output-directory=%s" % output_dir)
 
-    xelatex = check_output(["xelatex", tex_filename])
+    typeset_command.append(tex_filename)
+
+    typesest_result = check_output(typeset_command)
 
     pdf_filename = path_join(output_dir, "%s.pdf" % temporary_filename_base)
-        
+
     eps_filename = path_join(output_dir, "%s.eps" % output_filename_base)
-    
+
     ps_conversion_command = [ps_converter]
     if ps_converter == "pdftops":
         ps_conversion_command.append("-eps")
     ps_conversion_command.append(pdf_filename)
     ps_conversion_command.append(eps_filename)
 
-    ps_conversion = check_output(ps_conversion_command) # [ps_converter, pdf_filename, eps_filename]
-    
+    ps_conversion = check_output(ps_conversion_command)
+
     if keep_pdf is True:
         rename(pdf_filename, path_join(output_dir, "%s.pdf" % output_filename_base))
-    
+
     temp_filelist = [f for f in listdir(output_dir) if f.startswith(temporary_filename_base)]
     for temp_file in temp_filelist:
-        remove(temp_file)
+        remove(path_join(output_dir, temp_file))
 
 
 if __name__ == "__main__":
@@ -110,14 +121,12 @@ if __name__ == "__main__":
     parser.add_argument('--height',
                         metavar='h',
                         type=str,
-                        help='the height of the output figure, including units',
-                        default=None)
+                        help='the height of the output figure in em')
 
     parser.add_argument('--width',
                         metavar='w',
                         type=str,
-                        help='the width of the output figure, including units',
-                        default=None)                   
+                        help='the width of the output figure in em')                   
                         
     parser.add_argument('--preamble_src',
                         metavar='src',
