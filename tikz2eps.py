@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 
 from argparse import ArgumentParser
-from os import listdir, getcwd, remove, rename
+from logging import debug, info, warning
+from os import listdir, getcwd
 from os.path import abspath, basename, isfile, join as path_join
 from subprocess import check_output
-from time import time
+from shutil import copy, rmtree
+from tempfile import mkdtemp
 
+from IPython import embed
 
 def which(program):
     """
@@ -30,15 +33,18 @@ def which(program):
 
 
 def main(input_tikz, height, width, output_dir, keep_pdf, typeset_eng, preamble_src=None):
-    input_tikz = abspath(input_tikz)
+
+    debug('Checking if input tikz file exists')
     if isfile(abspath(input_tikz)) is not True:
         raise StandardError('input tikz file does not exist')
     
+    debug("Looking for typesetting engine")
     if which(typeset_eng) is None:
-        raise StandardError('selected typesetting engine (%s) is not installed on this system' % typset_eng)
+        raise StandardError('selected typesetting engine (%s) is not installed on this system' % typeset_eng)
     
+    debug('Attempting to find high quality pdf to eps converter, pdftops')
     if which('pdftops') is None:
-        print 'For better quality, it is recommended that you install pdftops, using epspdf'
+        info('For better quality, it is recommended that you install pdftops, using epspdf')
         if which('epspdf') is None:
             raise StandardError('pdf to eps converter (epspdf) is not installed on this system')
         else:
@@ -46,14 +52,18 @@ def main(input_tikz, height, width, output_dir, keep_pdf, typeset_eng, preamble_
     else:
         ps_converter = "pdftops"
         
+    temporary_directory = mkdtemp()
+    debug("Outputting to the following temporary directory: %s" % temporary_directory)
+        
     output_filename_base = basename(input_tikz).split('.')
     output_filename_base.pop()
     output_filename_base = '.'.join(output_filename_base)
+    
+    preamble = [r"\documentclass[]{standalone}"]
 
     if preamble_src is not None and isfile(abspath(preamble_src)):
         file_containing_preamble = open(abspath(preamble_src), 'r')
 
-        preamble = [r"\documentclass[]{standalone}"]
         for line in file_containing_preamble:
             # assume that everything up to the \begin{document} comprises the preamble
             if line.find("begin{document}") >= 0:
@@ -64,35 +74,40 @@ def main(input_tikz, height, width, output_dir, keep_pdf, typeset_eng, preamble_
                 preamble.append(line)
 
         file_containing_preamble.close()
-        
-    temporary_filename_base = "tmp_%i" % time()
+
 
     document = []
     document.append(r"\begin{document}")
-    document.append(r"\setlength\figureheight{%sem}" % height)
-    document.append(r"\setlength\figurewidth{%sem}" % width)
-    document.append(r"\input{%s}" % abspath(input_tikz))
+    if height is not None and width is not None:
+        document.append(r"\setlength\figureheight{%sem}" % height)
+        document.append(r"\setlength\figurewidth{%sem}" % width)
+
+    tikz_source_file = open(input_tikz, 'r')
+    for line in tikz_source_file:
+        document.append(line)
+    tikz_source_file.close()
+        
     document.append(r"\end{document}")
-    
-    output_dir = abspath(output_dir)
-    
-    tex_filename = path_join(output_dir, "%s.tex" % temporary_filename_base)
+
+    tex_filename = path_join(temporary_directory, "%s.tex" % output_filename_base)
 
     tex_file = open(tex_filename, 'w')
+
     tex_file.write('\n'.join(preamble + document))
     tex_file.close()
     
     typeset_command = [typeset_eng]
     if typeset_eng == "xelatex":
-        typeset_command.append("-output-directory=%s" % output_dir)
+        typeset_command.append("-output-directory=%s" % temporary_directory)
 
     typeset_command.append(tex_filename)
-
+    
+    debug("Attempting to run the following typesetting command: %s" % (' '.join(typeset_command)))
     typesest_result = check_output(typeset_command)
 
-    pdf_filename = path_join(output_dir, "%s.pdf" % temporary_filename_base)
+    pdf_filename = path_join(temporary_directory, "%s.pdf" % output_filename_base)
 
-    eps_filename = path_join(output_dir, "%s.eps" % output_filename_base)
+    eps_filename = path_join(temporary_directory, "%s.eps" % output_filename_base)
 
     ps_conversion_command = [ps_converter]
     if ps_converter == "pdftops":
@@ -100,14 +115,16 @@ def main(input_tikz, height, width, output_dir, keep_pdf, typeset_eng, preamble_
     ps_conversion_command.append(pdf_filename)
     ps_conversion_command.append(eps_filename)
 
+    debug("Attempting to run the following eps conversion command: %s" % (' '.join(ps_conversion_command)))
     ps_conversion = check_output(ps_conversion_command)
+    
+    output_dir = abspath(output_dir)
+    copy(eps_filename, output_dir)
 
     if keep_pdf is True:
-        rename(pdf_filename, path_join(output_dir, "%s.pdf" % output_filename_base))
+        copy(pdf_filename, output_dir)
 
-    temp_filelist = [f for f in listdir(output_dir) if f.startswith(temporary_filename_base)]
-    for temp_file in temp_filelist:
-        remove(path_join(output_dir, temp_file))
+    rmtree(temporary_directory)
 
 
 if __name__ == "__main__":
@@ -121,12 +138,14 @@ if __name__ == "__main__":
     parser.add_argument('--height',
                         metavar='h',
                         type=str,
-                        help='the height of the output figure in em')
+                        help='the height of the output figure in em',
+                        default=None)
 
     parser.add_argument('--width',
                         metavar='w',
                         type=str,
-                        help='the width of the output figure in em')                   
+                        help='the width of the output figure in em',
+                        default=None)                   
                         
     parser.add_argument('--preamble_src',
                         metavar='src',
@@ -148,7 +167,7 @@ if __name__ == "__main__":
     parser.add_argument('--typeset_eng',
                         metavar='eng',
                         type=str,
-                        help='the typsetting engine used to generate the figure (xelatex is the default)',
+                        help='the typesetting engine used to generate the figure (xelatex is the default)',
                         default='xelatex')
     
     args = parser.parse_args()
