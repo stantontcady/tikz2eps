@@ -1,14 +1,12 @@
 #!/usr/bin/env python
 
 from argparse import ArgumentParser
-from logging import debug, info, warning
-from os import listdir, getcwd
+from logging import debug, info
+from os import getcwd
 from os.path import abspath, basename, isfile, join as path_join
 from subprocess import check_output
 from shutil import copy, rmtree
 from tempfile import mkdtemp
-
-from IPython import embed
 
 def which(program):
     """
