@@ -156,17 +156,17 @@ if __name__ == "__main__":
                         type=str,
                         help='the directory in which to store the outputted figure(s)',
                         default=getcwd())
-
-    parser.add_argument('--keep_pdf',
-                        help='outputs a pdf version of the figure',
-                        default=False,
-                        action='store_true')
                         
     parser.add_argument('--typeset_eng',
                         metavar='eng',
                         type=str,
                         help='the typesetting engine used to generate the figure (xelatex is the default)',
                         default='xelatex')
+
+    parser.add_argument('--keep_pdf',
+                        help='outputs a pdf version of the figure',
+                        default=False,
+                        action='store_true')
     
     args = parser.parse_args()
     main(**vars(args))
