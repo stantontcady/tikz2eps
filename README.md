@@ -1,11 +1,11 @@
 tikz2eps
 ========
 
-A simple script for converting a tikz figure into an encapsulated postscript.  Essentially, tikz2eps is a wrapper around a few built in commands which simplifies the creation of eps (and pdf) figures from tikz.
+A simple script for converting a tikz figure into an encapsulated postscript (eps).  Essentially, tikz2eps is a wrapper around a few built in commands which simplifies the creation of eps (and pdf) figures from tikz.
 
 ##Requirements##
-tikz2eps is written completely in Python and was tested using version 2.7.6; it should be compatible with most versions of Python 2. It relies on the following builtin libraries.
-```
+tikz2eps is written completely in Python and was tested using version 2.7.6; it should be compatible with most versions of Python 2. It relies on the builtin libraries listed below.
+```python
 argparse, logging, os, subprocess, shutil, tempfile
 ```
 
@@ -23,12 +23,12 @@ I generally use the .tikz extension for source files, however the extension shou
 * `--height` - Controls the height of the figure in units of em (see note in incomplete features).
 * `--width` - Controls the width of the figure in units of em (see note in incomplete features).
 * `--preamble_src` - The LaTeX source from which the preamble should be extracted; this is generally the file into which the figure was originally typeset. If the source figure imports all the needed packages and defines all variables this step is unnecessary.
-* `--output_dir` - The directory into which the output figure should be saved.
+* `--output_dir` - The directory into which the output figure should be saved (default is current working directory).
 * `--typeset_eng` - The typesetting engine to be used (default is XeLaTeX).
-* `--keep_pdf` - Boolean to specify whether or not a pdf version of the figure should be kept.
+* `--keep_pdf` - Boolean to specify whether or not a pdf version of the figure should be kept (default is False).
 
 ##Known Gotchas##
-If the tikz source or the preamble source contain the `\ifCLASSINFOpdf \else \fi` the typesetting step seems to fail. If you experience this issue, it is recommended that you comment that block out of the source.
+If the tikz source or the preamble source contain the `\ifCLASSINFOpdf \else \fi` directives, the typesetting step seems to fail. If you experience this issue, it is recommended that you comment that block out of the source.
 
 
 ##Incomplete Features##
