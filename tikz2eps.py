@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from argparse import ArgumentParser
-from logging import debug, info
+from logging import debug, info, getLogger
 from os import getcwd
 from os.path import abspath, basename, isfile, join as path_join
 from subprocess import check_output
@@ -30,7 +30,10 @@ def which(program):
     return None
 
 
-def main(input_tikz, height, width, output_dir, keep_pdf, typeset_eng, preamble_src=None):
+def main(input_tikz, height, width, output_dir, keep_pdf, typeset_eng, preamble_src=None, verbose=False):
+    if verbose is True:
+        logger = getLogger()
+        logger.setLevel(10)
 
     debug('Checking if input tikz file exists')
     if isfile(abspath(input_tikz)) is not True:
@@ -77,12 +80,12 @@ def main(input_tikz, height, width, output_dir, keep_pdf, typeset_eng, preamble_
     document = []
     document.append(r"\begin{document}")
     if height is not None and width is not None:
-        document.append(r"\setlength\figureheight{%sem}" % height)
-        document.append(r"\setlength\figurewidth{%sem}" % width)
+        document.append(r"\setlength\figureheight{%scm}" % height)
+        document.append(r"\setlength\figurewidth{%scm}" % width)
 
     tikz_source_file = open(input_tikz, 'r')
     for line in tikz_source_file:
-        document.append(line)
+        document.append(line.rstrip())
     tikz_source_file.close()
         
     document.append(r"\end{document}")
@@ -95,8 +98,10 @@ def main(input_tikz, height, width, output_dir, keep_pdf, typeset_eng, preamble_
     tex_file.close()
     
     typeset_command = [typeset_eng]
-    if typeset_eng == "xelatex":
+    if typeset_eng == "xelatex" or typeset_eng == "pdflatex":
         typeset_command.append("-output-directory=%s" % temporary_directory)
+    elif typeset_eng == "lualatex":
+        typeset_command.append("--output-directory=%s" % temporary_directory)
 
     typeset_command.append(tex_filename)
     
@@ -165,6 +170,11 @@ if __name__ == "__main__":
 
     parser.add_argument('--keep_pdf',
                         help='outputs a pdf version of the figure',
+                        default=False,
+                        action='store_true')
+
+    parser.add_argument('--verbose',
+                        help='prints detailed log information',
                         default=False,
                         action='store_true')
     
