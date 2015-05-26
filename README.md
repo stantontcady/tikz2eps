@@ -20,15 +20,24 @@ tikz2eps takes several arguments, but only the path to the input tikz source is 
 
 I generally use the .tikz extension for source files, however the extension should not matter.  The following is a list of the optional parameters. 
 
-* `--height` - Controls the height of the figure in units of em (see note in incomplete features).
-* `--width` - Controls the width of the figure in units of em (see note in incomplete features).
-* `--preamble_src` - The LaTeX source from which the preamble should be extracted; this is generally the file into which the figure was originally typeset. If the source figure imports all the needed packages and defines all variables this step is unnecessary.
-* `--output_dir` - The directory into which the output figure should be saved (default is current working directory).
-* `--typeset_eng` - The typesetting engine to be used (default is XeLaTeX).
+* `--height` - Controls the height of the figure in units of pt (see note in incomplete features).
+* `--width` - Controls the width of the figure in units of pt (see note in incomplete features).
+* `--preamble` - The LaTeX source from which the preamble should be extracted; this is generally the file into which the figure was originally typeset. If the source figure imports all the needed packages and defines all variables this step is unnecessary.
+* `--output` - The directory into which the output figure should be saved (default is current working directory).
+* `--eng` - The typesetting engine to be used (default is XeLaTeX).
 * `--keep_pdf` - Boolean to specify whether or not a pdf version of the figure should be kept (default is False).
+* `--verbose` - Changes log level to 10 so as to print debugging messages.
 
 ##Known Gotchas##
-If the tikz source or the preamble source contain the `\ifCLASSINFOpdf \else \fi` directives, the typesetting step seems to fail. If you experience this issue, it is recommended that you comment that block out of the source.
+If a preamble source is included, tikz2eps will step through the part of the file between `\documentclass` and `\begin{document}` and extract most of the lines therein. Rather than try to maintain a blacklist of lines that will cause typesetting the standalone file to fail, the approach taken is to only permit certain lines (listed below). If your figure is not rendering correctly or if the conversion hangs, one of the preamble lines may have been excluded.
+
+Allowed preamble lines:
+
+* `\include{\*}`
+* `\new\*`
+* `\def\*`
+* `\usetikzlibrary`
+* `\usepgfplotslibrary`
 
 
 ##Incomplete Features##

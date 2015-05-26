@@ -8,6 +8,8 @@ from subprocess import check_output
 from shutil import copy, rmtree
 from tempfile import mkdtemp
 
+from IPython import embed
+
 def which(program):
     """
     Taken from http://stackoverflow.com/questions/377017/test-if-executable-exists-in-python
@@ -28,6 +30,30 @@ def which(program):
                 return exe_file
 
     return None
+
+
+def extract_raw_preamble_source(preamble_filename):
+    raw_preamble = []
+    with open(abspath(preamble_filename), 'r') as file_containing_preamble:
+        for line in file_containing_preamble:
+            # assume that everything up to the \begin{document} comprises the preamble
+            if line.find("begin{document}") >= 0:
+                break
+            elif line.find("documentclass") == -1:
+                line = line.strip()
+                if len(line) > 0:
+                    raw_preamble.append(line)
+    
+    return raw_preamble
+
+
+def filter_raw_preamble(raw_preamble):
+    acceptable_line_prefaces = ['\usepackage', r'\new', r'\def', '\usetikzlibrary', '\usepgfplotslibrary']
+    filtered_preamble = []
+    for line in raw_preamble:
+        if line[0] != "%" and any([True for preface in acceptable_line_prefaces if line.find(preface) != -1]):
+            filtered_preamble.append(line)
+    return filtered_preamble
 
 
 def main(input_tikz, height, width, output, keep_pdf, eng, preamble=None, verbose=False):
@@ -60,22 +86,15 @@ def main(input_tikz, height, width, output, keep_pdf, eng, preamble=None, verbos
     output_filename_base.pop()
     output_filename_base = '.'.join(output_filename_base)
     
-    preamble_lines = [r"\documentclass[]{standalone}"]
+    output_preamble = [r"\documentclass[]{standalone}"]
 
     if preamble is not None and isfile(abspath(preamble)):
-        file_containing_preamble = open(abspath(preamble), 'r')
+        preamble = extract_raw_preamble_source(preamble)
+        output_preamble.extend(filter_raw_preamble(preamble))
 
-        for line in file_containing_preamble:
-            # assume that everything up to the \begin{document} comprises the preamble
-            if line.find("begin{document}") >= 0:
-                break
-            elif line.find("documentclass") == -1:
-                line = line.strip()
-                # if line.find("%") != 0:
-                preamble_lines.append(line)
-
-        file_containing_preamble.close()
-
+    if len(output_preamble) == 1:
+        output_preamble.append("\usepackage{tikz,pgfplots}")
+        
 
     document = []
     document.append(r"\begin{document}")
@@ -94,7 +113,7 @@ def main(input_tikz, height, width, output, keep_pdf, eng, preamble=None, verbos
 
     tex_file = open(tex_filename, 'w')
 
-    tex_file.write('\n'.join(preamble_lines + document))
+    tex_file.write('\n'.join(output_preamble + document))
     tex_file.close()
     
     typeset_command = [eng]
