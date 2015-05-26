@@ -33,9 +33,9 @@ If a preamble source is included, tikz2eps will step through the part of the fil
 
 Allowed preamble lines:
 
-* `\include{\*}`
-* `\new\*`
-* `\def\*`
+* `\include{*}`
+* `\new*`
+* `\def*`
 * `\usetikzlibrary`
 * `\usepgfplotslibrary`
 
