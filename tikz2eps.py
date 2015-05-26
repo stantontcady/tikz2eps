@@ -30,7 +30,7 @@ def which(program):
     return None
 
 
-def main(input_tikz, height, width, output_dir, keep_pdf, typeset_eng, preamble_src=None, verbose=False):
+def main(input_tikz, height, width, output, keep_pdf, eng, preamble=None, verbose=False):
     if verbose is True:
         logger = getLogger()
         logger.setLevel(10)
@@ -40,12 +40,12 @@ def main(input_tikz, height, width, output_dir, keep_pdf, typeset_eng, preamble_
         raise StandardError('input tikz file does not exist')
     
     debug("Looking for typesetting engine")
-    if which(typeset_eng) is None:
+    if which(eng) is None:
         raise StandardError('selected typesetting engine (%s) is not installed on this system' % typeset_eng)
     
     debug('Attempting to find high quality pdf to eps converter, pdftops')
     if which('pdftops') is None:
-        info('For better quality, it is recommended that you install pdftops, using epspdf')
+        info('For better quality, it is recommended that you install pdftops, using epspdf instead')
         if which('epspdf') is None:
             raise StandardError('pdf to eps converter (epspdf) is not installed on this system')
         else:
@@ -60,10 +60,10 @@ def main(input_tikz, height, width, output_dir, keep_pdf, typeset_eng, preamble_
     output_filename_base.pop()
     output_filename_base = '.'.join(output_filename_base)
     
-    preamble = [r"\documentclass[]{standalone}"]
+    preamble_lines = [r"\documentclass[]{standalone}"]
 
-    if preamble_src is not None and isfile(abspath(preamble_src)):
-        file_containing_preamble = open(abspath(preamble_src), 'r')
+    if preamble is not None and isfile(abspath(preamble)):
+        file_containing_preamble = open(abspath(preamble), 'r')
 
         for line in file_containing_preamble:
             # assume that everything up to the \begin{document} comprises the preamble
@@ -72,7 +72,7 @@ def main(input_tikz, height, width, output_dir, keep_pdf, typeset_eng, preamble_
             elif line.find("documentclass") == -1:
                 line = line.strip()
                 # if line.find("%") != 0:
-                preamble.append(line)
+                preamble_lines.append(line)
 
         file_containing_preamble.close()
 
@@ -80,8 +80,8 @@ def main(input_tikz, height, width, output_dir, keep_pdf, typeset_eng, preamble_
     document = []
     document.append(r"\begin{document}")
     if height is not None and width is not None:
-        document.append(r"\setlength\figureheight{%scm}" % height)
-        document.append(r"\setlength\figurewidth{%scm}" % width)
+        document.append(r"\setlength\figureheight{%spt}" % height)
+        document.append(r"\setlength\figurewidth{%spt}" % width)
 
     tikz_source_file = open(input_tikz, 'r')
     for line in tikz_source_file:
@@ -94,13 +94,13 @@ def main(input_tikz, height, width, output_dir, keep_pdf, typeset_eng, preamble_
 
     tex_file = open(tex_filename, 'w')
 
-    tex_file.write('\n'.join(preamble + document))
+    tex_file.write('\n'.join(preamble_lines + document))
     tex_file.close()
     
-    typeset_command = [typeset_eng]
-    if typeset_eng == "xelatex" or typeset_eng == "pdflatex":
+    typeset_command = [eng]
+    if eng == "xelatex" or eng == "pdflatex":
         typeset_command.append("-output-directory=%s" % temporary_directory)
-    elif typeset_eng == "lualatex":
+    elif eng == "lualatex":
         typeset_command.append("--output-directory=%s" % temporary_directory)
 
     typeset_command.append(tex_filename)
@@ -121,7 +121,7 @@ def main(input_tikz, height, width, output_dir, keep_pdf, typeset_eng, preamble_
     debug("Attempting to run the following eps conversion command: %s" % (' '.join(ps_conversion_command)))
     ps_conversion = check_output(ps_conversion_command)
     
-    output_dir = abspath(output_dir)
+    output_dir = abspath(output)
     copy(eps_filename, output_dir)
 
     if keep_pdf is True:
@@ -141,29 +141,29 @@ if __name__ == "__main__":
     parser.add_argument('--height',
                         metavar='h',
                         type=str,
-                        help='the height of the output figure in em',
+                        help='the height of the output figure in pt',
                         default=None)
 
     parser.add_argument('--width',
                         metavar='w',
                         type=str,
-                        help='the width of the output figure in em',
+                        help='the width of the output figure in pt',
                         default=None)                   
                         
-    parser.add_argument('--preamble_src',
-                        metavar='src',
+    parser.add_argument('--preamble',
+                        metavar='FILE',
                         type=str,
                         help='a file from which to extract the latex preamble',
                         default=None)
                         
-    parser.add_argument('--output_dir',
-                        metavar='dir',
+    parser.add_argument('--output',
+                        metavar='DIRECTORY',
                         type=str,
                         help='the directory in which to store the outputted figure(s)',
                         default=getcwd())
                         
-    parser.add_argument('--typeset_eng',
-                        metavar='eng',
+    parser.add_argument('--eng',
+                        metavar='ENGINE',
                         type=str,
                         help='the typesetting engine used to generate the figure (xelatex is the default)',
                         default='xelatex')
